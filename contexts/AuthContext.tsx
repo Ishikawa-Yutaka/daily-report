@@ -6,6 +6,7 @@ interface User {
   id: string
   employeeNumber: string
   employeeName: string
+  role?: string
 }
 
 interface AuthContextType {

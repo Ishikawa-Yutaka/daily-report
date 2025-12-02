@@ -45,3 +45,16 @@ export interface UpdateDailyReportInput extends Partial<Omit<CreateDailyReportIn
   id: string
   activities?: CreateActivityInput[]
 }
+
+export type UserRole = 'USER' | 'ADMIN'
+
+export interface User {
+  id: string
+  employeeNumber: string
+  employeeName: string
+  role: UserRole
+}
+
+export interface DailyReportWithUser extends DailyReport {
+  user: User
+}

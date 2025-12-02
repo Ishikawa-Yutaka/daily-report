@@ -8,6 +8,7 @@ export interface JWTPayload {
   userId: string
   employeeNumber: string
   employeeName: string
+  role?: string
 }
 
 // パスワードをハッシュ化

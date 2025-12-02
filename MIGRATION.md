@@ -1,6 +1,6 @@
 # データベースマイグレーションガイド
 
-このドキュメントは、v1からv2へのデータベーススキーマ移行手順を説明します。
+このドキュメントは、データベーススキーマの移行手順を説明します。
 
 ## 変更概要
 
@@ -13,6 +13,12 @@
    - `quarterlyGoal`カラム追加（3ヶ月間の目標）
    - `activities`カラム削除（Activityテーブルに移行）
 
+### v2 → v3の主な変更点（管理機能追加）
+
+1. **Userテーブルの更新**: `role`カラム追加（USER / ADMIN権限管理）
+2. **AdminLogテーブルの追加**: 管理者操作ログの記録
+3. **Enumの追加**: UserRole、AdminActionType
+
 ## 移行手順
 
 ### ステップ1: Usersテーブルの作成
@@ -20,18 +26,25 @@
 Supabase SQLエディタで以下のSQLを実行してください。
 
 ```sql
+-- UserRole Enumの作成
+CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
+
 -- Usersテーブルの作成
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_number VARCHAR(50) UNIQUE NOT NULL,
   employee_name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  role user_role NOT NULL DEFAULT 'USER',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 社員番号のインデックス作成（検索高速化）
 CREATE INDEX IF NOT EXISTS idx_users_employee_number ON users(employee_number);
+
+-- roleのインデックス作成（管理者検索高速化）
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 -- 更新日時の自動更新トリガー
 CREATE OR REPLACE FUNCTION update_users_updated_at()
@@ -303,12 +316,112 @@ SELECT COUNT(*) FROM daily_reports;
 SELECT COUNT(*) FROM daily_reports WHERE activities IS NOT NULL;
 ```
 
+## v3への移行手順（管理機能追加）
+
+### ステップ6: AdminLogテーブルの作成
+
+管理者の操作ログを記録するテーブルを作成します。
+
+```sql
+-- AdminActionType Enumの作成
+CREATE TYPE admin_action_type AS ENUM (
+  'LOGIN',
+  'LOGOUT',
+  'VIEW_REPORT',
+  'FILTER_REPORTS',
+  'CHANGE_USER_ROLE',
+  'VIEW_USERS',
+  'VIEW_LOGS'
+);
+
+-- AdminLogテーブルの作成
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL,
+  action_type admin_action_type NOT NULL,
+  target_user_id UUID,
+  target_report_id UUID,
+  details TEXT,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_admin_logs_admin
+    FOREIGN KEY (admin_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE
+);
+
+-- インデックス作成（検索高速化）
+CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_id ON admin_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_action_type ON admin_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at);
+```
+
+### ステップ7: 初回管理者の作成
+
+最初の管理者を作成します。パスワードは事前にbcryptでハッシュ化してください。
+
+```sql
+-- パスワードのハッシュ化方法（Node.jsで実行）:
+-- const bcrypt = require('bcryptjs');
+-- const hash = bcrypt.hashSync('your-password', 10);
+-- console.log(hash);
+
+-- 管理者ユーザーの作成
+INSERT INTO users (employee_number, employee_name, password_hash, role)
+VALUES (
+  'ADMIN001',
+  '管理者',
+  '$2a$10$YourHashedPasswordHere',  -- 実際のハッシュ値に置き換えてください
+  'ADMIN'
+)
+ON CONFLICT (employee_number) DO NOTHING;
+```
+
+### ステップ8: 既存ユーザーのrole更新（必要な場合）
+
+既にUserテーブルが存在し、roleカラムがない場合は、以下を実行してください。
+
+```sql
+-- roleカラムが存在しない場合のみ実行
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role user_role NOT NULL DEFAULT 'USER';
+
+-- roleのインデックス作成
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- 特定のユーザーを管理者に昇格（必要に応じて）
+UPDATE users
+SET role = 'ADMIN'
+WHERE employee_number = 'EMP001';  -- 管理者にしたい社員番号
+```
+
+## v3移行後の動作確認
+
+```sql
+-- 管理者の確認
+SELECT id, employee_number, employee_name, role
+FROM users
+WHERE role = 'ADMIN';
+
+-- AdminLogテーブルの確認
+SELECT * FROM admin_logs LIMIT 5;
+
+-- Enumの確認
+SELECT enumlabel FROM pg_enum
+WHERE enumtypid = 'user_role'::regtype;
+
+SELECT enumlabel FROM pg_enum
+WHERE enumtypid = 'admin_action_type'::regtype;
+```
+
 ## 移行後のアプリケーション設定
 
 1. `.env`ファイルに`JWT_SECRET`を設定してください
 2. アプリケーションを再起動してください
 3. 新規ユーザーでサインアップを試してください
 4. 日報の作成・編集・削除が正常に動作するか確認してください
+5. 管理者アカウントで`/admin/login`にアクセスして管理画面を確認してください
+6. 社員管理機能で権限の付与・変更が正常に動作するか確認してください
+7. 操作ログが正しく記録されているか確認してください
 
 ## サポート
 

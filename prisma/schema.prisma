@@ -12,18 +12,26 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id                String        @id @default(uuid())
   employeeNumber    String        @unique
   employeeName      String
   passwordHash      String
+  role              UserRole      @default(USER)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   reports           DailyReport[]
+  adminLogs         AdminLog[]
 
   @@map("users")
   @@index([employeeNumber])
+  @@index([role])
 }
 
 model DailyReport {
@@ -59,4 +67,32 @@ model Activity {
 
   @@map("activities")
   @@index([reportId])
+}
+
+enum AdminActionType {
+  LOGIN
+  LOGOUT
+  VIEW_REPORT
+  FILTER_REPORTS
+  CHANGE_USER_ROLE
+  VIEW_USERS
+  VIEW_LOGS
+}
+
+model AdminLog {
+  id                String          @id @default(uuid())
+  adminId           String
+  actionType        AdminActionType
+  targetUserId      String?
+  targetReportId    String?
+  details           String?         @db.Text
+  ipAddress         String?
+  createdAt         DateTime        @default(now())
+
+  admin             User            @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("admin_logs")
+  @@index([adminId])
+  @@index([actionType])
+  @@index([createdAt])
 }

@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       userId: user.id,
       employeeNumber: user.employeeNumber,
       employeeName: user.employeeName,
+      role: user.role,
     })
 
     // レスポンスにCookieをセット
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
         id: user.id,
         employeeNumber: user.employeeNumber,
         employeeName: user.employeeName,
+        role: user.role,
       },
       token,
     })
