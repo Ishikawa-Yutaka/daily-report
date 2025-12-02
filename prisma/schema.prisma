@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String        @id @default(uuid())
+  employeeNumber    String        @unique
+  employeeName      String
+  passwordHash      String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  reports           DailyReport[]
+
+  @@map("users")
+  @@index([employeeNumber])
+}
+
+model DailyReport {
+  id                String     @id @default(uuid())
+  date              DateTime   @default(now())
+  quarterlyGoal     String     @db.Text
+  improvements      String     @db.Text
+  happyMoments      String     @db.Text
+  futureTasks       String     @db.Text
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  userId            String
+
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities        Activity[]
+
+  @@map("daily_reports")
+  @@index([userId])
+}
+
+model Activity {
+  id                String      @id @default(uuid())
+  reportId          String
+  projectCategory   String
+  content           String      @db.Text
+  workingHours      Float
+  issues            String      @db.Text
+  order             Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  report            DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+  @@index([reportId])
+}
