@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,61 +6,252 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
 model User {
-  id                String        @id @default(uuid())
-  employeeNumber    String        @unique
-  employeeName      String
-  passwordHash      String
-  role              UserRole      @default(USER)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id             String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeNumber String        @unique
+  employeeName   String
+  passwordHash   String
+  role           UserRole      @default(USER)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  adminLogs      AdminLog[]
+  reports        DailyReport[]
 
-  reports           DailyReport[]
-  adminLogs         AdminLog[]
-
+  @@index([employeeNumber], map: "idx_users_employee_number")
+  @@index([role], map: "idx_users_role")
   @@map("users")
-  @@index([employeeNumber])
-  @@index([role])
 }
 
 model DailyReport {
-  id                String     @id @default(uuid())
-  date              DateTime   @default(now())
-  quarterlyGoal     String     @db.Text
-  improvements      String     @db.Text
-  happyMoments      String     @db.Text
-  futureTasks       String     @db.Text
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  userId            String
+  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date          DateTime   @default(now()) @db.Timestamptz(6)
+  quarterlyGoal String
+  improvements  String
+  happyMoments  String
+  futureTasks   String
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  userId        String     @db.Uuid
+  activities    Activity[]
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_daily_report_user")
 
-  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities        Activity[]
-
+  @@index([date], map: "idx_daily_reports_date")
+  @@index([userId], map: "idx_daily_reports_user_id")
   @@map("daily_reports")
-  @@index([userId])
 }
 
 model Activity {
-  id                String      @id @default(uuid())
-  reportId          String
-  projectCategory   String
-  content           String      @db.Text
-  workingHours      Float
-  issues            String      @db.Text
-  order             Int         @default(0)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id              String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectCategory String
+  content         String
+  workingHours    Float       @default(0)
+  issues          String
+  order           Int         @default(0)
+  createdAt       DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  reportId        String      @db.Uuid
+  report          DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_activity_report")
 
-  report            DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
+  @@index([order], map: "idx_activities_order")
+  @@index([reportId], map: "idx_activities_report_id")
   @@map("activities")
-  @@index([reportId])
+}
+
+model AdminLog {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  adminId        String          @db.Uuid
+  actionType     AdminActionType
+  targetUserId   String?         @db.Uuid
+  targetReportId String?         @db.Uuid
+  details        String?
+  ipAddress      String?
+  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
+  admin          User            @relation(fields: [adminId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_admin_log_admin")
+
+  @@index([actionType], map: "idx_admin_logs_action_type")
+  @@index([adminId], map: "idx_admin_logs_admin_id")
+  @@index([createdAt], map: "idx_admin_logs_created_at")
+  @@map("admin_logs")
+}
+
+model approvals {
+  id         String         @id
+  requestId  String
+  approverId String
+  status     ApprovalStatus
+  comment    String?
+  createdAt  DateTime       @default(now())
+  employees  employees      @relation(fields: [approverId], references: [id])
+  requests   requests       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([approverId])
+  @@index([requestId])
+}
+
+model attendances {
+  id                String    @id
+  employeeId        String
+  date              DateTime  @db.Date
+  clockIn           DateTime?
+  clockOut          DateTime?
+  clockInLatitude   Float?
+  clockInLongitude  Float?
+  clockOutLatitude  Float?
+  clockOutLongitude Float?
+  actualWorkHours   Int?
+  overtimeHours     Int?      @default(0)
+  nightWorkHours    Int?      @default(0)
+  holidayWorkHours  Int?      @default(0)
+  weekNumber        Int?
+  year              Int
+  isCorrected       Boolean   @default(false)
+  correctionReason  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime
+  employees         employees @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  breaks            breaks[]
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@index([employeeId, date])
+  @@index([employeeId, year, weekNumber])
+}
+
+model audit_logs {
+  id         String     @id
+  employeeId String?
+  action     String
+  tableName  String
+  recordId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime   @default(now())
+  employees  employees? @relation(fields: [employeeId], references: [id])
+
+  @@index([createdAt])
+  @@index([employeeId])
+  @@index([tableName, recordId])
+}
+
+model breaks {
+  id           String      @id
+  attendanceId String
+  startTime    DateTime
+  endTime      DateTime?
+  duration     Int?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime
+  employeeId   String?
+  attendances  attendances @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  employees    employees?  @relation(fields: [employeeId], references: [id])
+
+  @@index([attendanceId])
+}
+
+model employees {
+  id            String         @id
+  email         String         @unique
+  name          String
+  department    String?
+  role          Role           @default(EMPLOYEE)
+  workPatternId String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime
+  approvals     approvals[]
+  attendances   attendances[]
+  audit_logs    audit_logs[]
+  breaks        breaks[]
+  work_patterns work_patterns? @relation(fields: [workPatternId], references: [id])
+  paid_leaves   paid_leaves[]
+  requests      requests[]
+
+  @@index([department])
+  @@index([email])
+}
+
+model holidays {
+  id         String   @id
+  date       DateTime @unique @db.Date
+  name       String
+  isNational Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  @@index([date])
+}
+
+model labor_agreements {
+  id              String   @id
+  employeeId      String
+  year            Int
+  month           Int?
+  monthlyLimit    Int?
+  yearlyLimit     Int      @default(21600)
+  specialLimit    Int?
+  monthlyOvertime Int      @default(0)
+  yearlyOvertime  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime
+
+  @@unique([employeeId, year, month])
+  @@index([employeeId, year])
+}
+
+model paid_leaves {
+  id            String    @id
+  employeeId    String
+  year          Int
+  grantedDays   Int       @default(0)
+  usedDays      Int       @default(0)
+  remainingDays Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  employees     employees @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, year])
+  @@index([employeeId, year])
+}
+
+model requests {
+  id                String        @id
+  employeeId        String
+  type              RequestType
+  status            RequestStatus @default(PENDING)
+  date              DateTime?     @db.Date
+  startDate         DateTime?     @db.Date
+  endDate           DateTime?     @db.Date
+  reason            String
+  attendanceId      String?
+  correctedClockIn  DateTime?
+  correctedClockOut DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime
+  approvals         approvals[]
+  employees         employees     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([type])
+}
+
+model work_patterns {
+  id            String      @id
+  name          String
+  startTime     String
+  endTime       String
+  breakDuration Int         @default(60)
+  workHours     Int         @default(480)
+  isFlexible    Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime
+  employees     employees[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 enum AdminActionType {
@@ -79,20 +264,25 @@ enum AdminActionType {
   VIEW_LOGS
 }
 
-model AdminLog {
-  id                String          @id @default(uuid())
-  adminId           String
-  actionType        AdminActionType
-  targetUserId      String?
-  targetReportId    String?
-  details           String?         @db.Text
-  ipAddress         String?
-  createdAt         DateTime        @default(now())
+enum ApprovalStatus {
+  APPROVED
+  REJECTED
+}
 
-  admin             User            @relation(fields: [adminId], references: [id], onDelete: Cascade)
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
 
-  @@map("admin_logs")
-  @@index([adminId])
-  @@index([actionType])
-  @@index([createdAt])
+enum RequestType {
+  ATTENDANCE_CORRECTION
+  PAID_LEAVE
+  OTHER_LEAVE
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
 }
