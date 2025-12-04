@@ -7,15 +7,16 @@
 ### 一般ユーザー機能
 - ユーザー登録・ログイン（社員番号・パスワード・社員名）
 - 日報の作成・編集・削除・閲覧
-- 3ヶ月間の目標設定
+- 本日の目標設定
 - 動的な活動セクション（プロジェクト別に活動内容を記録）
   - プロジェクト/カテゴリー
   - 活動内容
-  - 稼働時間
+  - 稼働時間（開始時刻・終了時刻から自動計算）
   - 課題
 - 改善点・気づきの記録
 - 嬉しかったこと・感動したことの記録
 - これからのタスクの記録
+- 日報詳細ページからの直接編集機能
 
 ### 管理者機能
 - 管理者専用ログイン画面（`/admin/login`）
@@ -193,7 +194,7 @@ web/
 ### DailyReport（日報）
 - id: UUID
 - date: 日付
-- quarterlyGoal: 3ヶ月間の目標
+- dailyGoal: 本日の目標
 - improvements: 改善点・気づき
 - happyMoments: 嬉しかったこと・感動したこと
 - futureTasks: これからのタスク
@@ -206,7 +207,9 @@ web/
 - reportId: 日報ID（外部キー）
 - projectCategory: プロジェクト/カテゴリー
 - content: 活動内容
-- workingHours: 稼働時間
+- workingHours: 稼働時間（時間）
+- startTime: 開始時刻（HH:mm形式）
+- endTime: 終了時刻（HH:mm形式）
 - issues: 課題
 - order: 表示順
 - createdAt: 作成日時
