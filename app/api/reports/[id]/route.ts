@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // 認証チェック
-    const user = getUserFromRequest(request)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json(
         { error: '認証が必要です' },
@@ -105,7 +105,7 @@ export async function DELETE(
 ) {
   try {
     // 認証チェック
-    const user = getUserFromRequest(request)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json(
         { error: '認証が必要です' },

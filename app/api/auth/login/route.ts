@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     }
 
     // JWTトークンを生成
-    const token = generateToken({
+    const token = await generateToken({
       userId: user.id,
       employeeNumber: user.employeeNumber,
       employeeName: user.employeeName,

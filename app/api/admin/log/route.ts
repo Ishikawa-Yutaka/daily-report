@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 // 管理者の操作ログを記録
 export async function POST(request: Request) {
   try {
-    const user = getUserFromRequest(request)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json(
         { error: '認証が必要です' },
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 // 管理者の操作ログを取得
 export async function GET(request: Request) {
   try {
-    const user = getUserFromRequest(request)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json(
         { error: '認証が必要です' },

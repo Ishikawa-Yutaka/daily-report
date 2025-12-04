@@ -6,7 +6,7 @@ import { getUserFromRequest } from '@/lib/auth'
 export async function GET(request: Request) {
   try {
     // 認証チェック
-    const user = getUserFromRequest(request)
+    const user = await getUserFromRequest(request)
     if (!user) {
       return NextResponse.json(
         { error: '認証が必要です' },
