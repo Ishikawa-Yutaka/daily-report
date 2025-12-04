@@ -4,6 +4,8 @@ export interface Activity {
   projectCategory: string
   content: string
   workingHours: number
+  startTime?: string | null
+  endTime?: string | null
   issues: string
   order: number
   createdAt: Date
@@ -13,7 +15,7 @@ export interface Activity {
 export interface DailyReport {
   id: string
   date: Date
-  quarterlyGoal: string
+  dailyGoal: string
   improvements: string
   happyMoments: string
   futureTasks: string
@@ -27,13 +29,15 @@ export interface CreateActivityInput {
   projectCategory: string
   content: string
   workingHours: number
+  startTime?: string
+  endTime?: string
   issues: string
   order: number
 }
 
 export interface CreateDailyReportInput {
   date: Date
-  quarterlyGoal: string
+  dailyGoal: string
   improvements: string
   happyMoments: string
   futureTasks: string

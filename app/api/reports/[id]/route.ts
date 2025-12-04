@@ -54,16 +54,40 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 認証チェック
+    const user = await getUserFromRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: '認証が必要です' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
-    const { date, quarterlyGoal, improvements, happyMoments, futureTasks, activities } = body
+    const { date, dailyGoal, improvements, happyMoments, futureTasks, activities } = body
+
+    // 自分の日報のみ更新可能
+    const existingReport = await prisma.dailyReport.findFirst({
+      where: {
+        id,
+        userId: user.userId,
+      },
+    })
+
+    if (!existingReport) {
+      return NextResponse.json(
+        { error: 'レポートが見つかりません' },
+        { status: 404 }
+      )
+    }
 
     // 既存のアクティビティを削除して新しいものを作成
     const report = await prisma.dailyReport.update({
       where: { id },
       data: {
         ...(date && { date: new Date(date) }),
-        ...(quarterlyGoal !== undefined && { quarterlyGoal }),
+        ...(dailyGoal !== undefined && { dailyGoal }),
         ...(improvements !== undefined && { improvements }),
         ...(happyMoments !== undefined && { happyMoments }),
         ...(futureTasks !== undefined && { futureTasks }),
@@ -74,6 +98,8 @@ export async function PUT(
               projectCategory: activity.projectCategory,
               content: activity.content,
               workingHours: activity.workingHours,
+              startTime: activity.startTime || null,
+              endTime: activity.endTime || null,
               issues: activity.issues,
               order: index,
             })),

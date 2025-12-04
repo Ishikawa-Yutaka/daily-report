@@ -1,21 +1,21 @@
-'use client'
+"use client";
 
-import { DailyReport } from '@/types/daily-report'
-import Link from 'next/link'
+import { DailyReport } from "@/types/daily-report";
+import Link from "next/link";
 
 interface DailyReportListProps {
-  reports: DailyReport[]
+  reports: DailyReport[];
 }
 
 export default function DailyReportList({ reports }: DailyReportListProps) {
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short',
-    })
-  }
+    return new Date(date).toLocaleDateString("ja-JP", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -37,17 +37,17 @@ export default function DailyReportList({ reports }: DailyReportListProps) {
             className="block p-6 bg-white border border-gray-200 rounded-lg hover:shadow-lg transition-shadow"
           >
             <div className="flex justify-between items-start mb-3">
-              <h3 className="text-lg font-semibold">
+              <h3 className="text-lg font-semibold text-gray-900">
                 {formatDate(report.date)}
               </h3>
               <span className="text-sm text-gray-500">
-                {new Date(report.updatedAt).toLocaleDateString('ja-JP')}
+                {new Date(report.updatedAt).toLocaleDateString("ja-JP")}
               </span>
             </div>
 
             <div className="space-y-2 text-sm">
               <div>
-                <span className="font-medium text-gray-700">3ヶ月の目標: </span>
+                <span className="font-medium text-gray-700">本日の目標: </span>
                 <span className="text-gray-600 line-clamp-1">
                   {report.quarterlyGoal}
                 </span>
@@ -59,7 +59,10 @@ export default function DailyReportList({ reports }: DailyReportListProps) {
                 </span>
                 <span className="ml-2 text-gray-700">合計稼働時間: </span>
                 <span className="text-gray-600">
-                  {report.activities.reduce((sum, a) => sum + a.workingHours, 0).toFixed(1)}時間
+                  {report.activities
+                    .reduce((sum, a) => sum + a.workingHours, 0)
+                    .toFixed(1)}
+                  時間
                 </span>
               </div>
               {report.activities.length > 0 && (
@@ -75,5 +78,5 @@ export default function DailyReportList({ reports }: DailyReportListProps) {
         ))
       )}
     </div>
-  )
+  );
 }

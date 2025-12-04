@@ -51,13 +51,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { date, quarterlyGoal, improvements, happyMoments, futureTasks, activities } = body
+    const { date, dailyGoal, improvements, happyMoments, futureTasks, activities } = body
 
     // ログインユーザーの日報として作成
     const report = await prisma.dailyReport.create({
       data: {
         date: new Date(date),
-        quarterlyGoal,
+        dailyGoal,
         improvements,
         happyMoments,
         futureTasks,
@@ -67,6 +67,8 @@ export async function POST(request: Request) {
             projectCategory: activity.projectCategory,
             content: activity.content,
             workingHours: activity.workingHours,
+            startTime: activity.startTime || null,
+            endTime: activity.endTime || null,
             issues: activity.issues,
             order: index,
           })),

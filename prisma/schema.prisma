@@ -23,17 +23,17 @@ model User {
 }
 
 model DailyReport {
-  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  date          DateTime   @default(now()) @db.Timestamptz(6)
-  quarterlyGoal String
-  improvements  String
-  happyMoments  String
-  futureTasks   String
-  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
-  userId        String     @db.Uuid
-  activities    Activity[]
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_daily_report_user")
+  id           String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date         DateTime   @default(now()) @db.Timestamptz(6)
+  dailyGoal    String     @map("quarterlyGoal")
+  improvements String
+  happyMoments String
+  futureTasks  String
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  userId       String     @db.Uuid
+  activities   Activity[]
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_daily_report_user")
 
   @@index([date], map: "idx_daily_reports_date")
   @@index([userId], map: "idx_daily_reports_user_id")
@@ -45,6 +45,8 @@ model Activity {
   projectCategory String
   content         String
   workingHours    Float       @default(0)
+  startTime       String?     @map("start_time")
+  endTime         String?     @map("end_time")
   issues          String
   order           Int         @default(0)
   createdAt       DateTime    @default(now()) @db.Timestamptz(6)

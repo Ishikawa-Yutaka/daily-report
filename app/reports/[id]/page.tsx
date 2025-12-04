@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { Activity, DailyReport } from '@/types/daily-report'
+import { useParams, useRouter } from 'next/navigation'
+import { Activity, DailyReport, CreateDailyReportInput } from '@/types/daily-report'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Header from '@/components/Header'
+import DailyReportForm from '@/components/DailyReportForm'
 
 export default function ReportDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     loadReport()
@@ -30,6 +33,32 @@ export default function ReportDetailPage() {
       console.error('レポート取得エラー:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdate = async (data: CreateDailyReportInput) => {
+    try {
+      const res = await fetch(`/api/reports/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      })
+
+      if (res.ok) {
+        const updatedReport = await res.json()
+        setReport(updatedReport)
+        setIsEditing(false)
+        alert('日報を更新しました')
+      } else {
+        const error = await res.json()
+        alert(error.error || '更新に失敗しました')
+      }
+    } catch (error) {
+      console.error('更新エラー:', error)
+      alert('更新に失敗しました')
     }
   }
 
@@ -73,22 +102,86 @@ export default function ReportDetailPage() {
     )
   }
 
+  // 編集モードの場合はフォームを表示
+  if (isEditing) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  ← 戻る
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  日報を編集
+                </h1>
+              </div>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md">
+              <DailyReportForm
+                onSubmit={handleUpdate}
+                initialData={{
+                  date: new Date(report.date),
+                  dailyGoal: report.dailyGoal,
+                  improvements: report.improvements,
+                  happyMoments: report.happyMoments,
+                  futureTasks: report.futureTasks,
+                  activities: report.activities.map((a: Activity) => ({
+                    projectCategory: a.projectCategory,
+                    content: a.content,
+                    workingHours: a.workingHours,
+                    startTime: a.startTime || '',
+                    endTime: a.endTime || '',
+                    issues: a.issues,
+                    order: a.order,
+                  })),
+                }}
+                isEditing={true}
+              />
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  // 閲覧モード
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
         <Header />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-4 mb-4">
-            <Link
-              href="/"
-              className="text-gray-600 hover:text-gray-900 transition-colors"
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                ← 戻る
+              </Link>
+              <h1 className="text-2xl font-bold text-gray-900">
+                日報詳細
+              </h1>
+            </div>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
-              ← 戻る
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">
-              日報詳細
-            </h1>
+              編集
+            </button>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-8">
@@ -104,11 +197,11 @@ export default function ReportDetailPage() {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                3ヶ月間の目標
+                本日の目標
               </h3>
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <p className="text-gray-700 whitespace-pre-wrap">
-                  {report.quarterlyGoal}
+                  {report.dailyGoal}
                 </p>
               </div>
             </div>
@@ -132,6 +225,11 @@ export default function ReportDetailPage() {
                     <span className="ml-2 font-semibold text-gray-900">
                       {activity.projectCategory}
                     </span>
+                    {activity.startTime && activity.endTime && (
+                      <span className="ml-2 text-sm text-gray-600">
+                        {activity.startTime} 〜 {activity.endTime}
+                      </span>
+                    )}
                     <span className="ml-2 text-sm text-gray-600">
                       ({activity.workingHours}時間)
                     </span>
