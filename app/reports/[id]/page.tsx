@@ -217,7 +217,19 @@ export default function ReportDetailPage() {
               </div>
 
               {report.activities.map((activity: Activity, index: number) => (
-                <div key={activity.id} className="mb-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div
+                  key={activity.id}
+                  onClick={() => {
+                    setIsEditing(true)
+                    setTimeout(() => {
+                      const element = document.getElementById(`activity-${index}`)
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                    }, 100)
+                  }}
+                  className="mb-4 bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                >
                   <div className="mb-3">
                     <span className="inline-block bg-blue-500 text-white text-xs px-2 py-1 rounded">
                       活動 {index + 1}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { CreateDailyReportInput, CreateActivityInput } from '@/types/daily-report'
 
 interface DailyReportFormProps {
@@ -33,6 +33,13 @@ export default function DailyReportForm({
     ],
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+
+  // テキストエリアの自動リサイズ関数
+  const autoResize = (element: HTMLTextAreaElement) => {
+    element.style.height = 'auto'
+    element.style.height = element.scrollHeight + 'px'
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,7 +115,11 @@ export default function DailyReportForm({
           type="date"
           id="date"
           name="date"
-          value={formData.date instanceof Date ? formData.date.toISOString().split('T')[0] : ''}
+          value={
+            formData.date instanceof Date
+              ? new Date(formData.date.getTime() - formData.date.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+              : new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
+          }
           onChange={handleChange}
           required
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
@@ -124,27 +135,21 @@ export default function DailyReportForm({
           name="dailyGoal"
           value={formData.dailyGoal}
           onChange={handleChange}
+          onInput={(e) => autoResize(e.currentTarget)}
           required
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
           placeholder="本日の目標を記入してください"
         />
       </div>
 
       <div className="border-t pt-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold text-gray-900">活動セクション</h3>
-          <button
-            type="button"
-            onClick={addActivity}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            + 活動を追加
-          </button>
         </div>
 
         {formData.activities.map((activity, index) => (
-          <div key={index} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+          <div key={index} id={`activity-${index}`} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 scroll-mt-20">
             <div className="flex justify-between items-center mb-4">
               <h4 className="font-semibold text-gray-700">活動 {index + 1}</h4>
               <button
@@ -182,9 +187,10 @@ export default function DailyReportForm({
                   onChange={(e) =>
                     handleActivityChange(index, 'content', e.target.value)
                   }
+                  onInput={(e) => autoResize(e.currentTarget)}
                   required
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
                   placeholder="この活動の詳細を記入してください"
                 />
               </div>
@@ -194,49 +200,125 @@ export default function DailyReportForm({
                   稼働時間
                 </label>
                 <div className="flex gap-2 items-center">
-                  <input
-                    type="time"
-                    value={activity.startTime || ''}
-                    placeholder="開始時刻"
-                    onChange={(e) => {
-                      const startTime = e.target.value
-                      handleActivityChange(index, 'startTime', startTime)
-                      const endTimeInput = e.target.nextElementSibling?.nextElementSibling as HTMLInputElement
-                      if (startTime && endTimeInput?.value) {
-                        const [startHour, startMin] = startTime.split(':').map(Number)
-                        const [endHour, endMin] = endTimeInput.value.split(':').map(Number)
-                        const startMinutes = startHour * 60 + startMin
-                        const endMinutes = endHour * 60 + endMin
-                        const diffMinutes = endMinutes - startMinutes
-                        const hours = diffMinutes / 60
-                        handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
-                      }
-                    }}
-                    required
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                  />
+                  {/* 開始時刻 */}
+                  <div className="flex gap-1 items-center">
+                    <select
+                      value={activity.startTime ? activity.startTime.split(':')[0] : ''}
+                      onChange={(e) => {
+                        const hour = e.target.value
+                        const min = activity.startTime ? activity.startTime.split(':')[1] : '00'
+                        const startTime = `${hour}:${min}`
+                        handleActivityChange(index, 'startTime', startTime)
+                        if (activity.endTime) {
+                          const [startHour, startMin] = startTime.split(':').map(Number)
+                          const [endHour, endMin] = activity.endTime.split(':').map(Number)
+                          const startMinutes = startHour * 60 + startMin
+                          const endMinutes = endHour * 60 + endMin
+                          const diffMinutes = endMinutes - startMinutes
+                          const hours = diffMinutes / 60
+                          handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
+                        }
+                      }}
+                      required
+                      className="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="">--</option>
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={String(h).padStart(2, '0')}>
+                          {String(h).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-gray-600">:</span>
+                    <select
+                      value={activity.startTime ? activity.startTime.split(':')[1] : ''}
+                      onChange={(e) => {
+                        const hour = activity.startTime ? activity.startTime.split(':')[0] : '00'
+                        const min = e.target.value
+                        const startTime = `${hour}:${min}`
+                        handleActivityChange(index, 'startTime', startTime)
+                        if (activity.endTime) {
+                          const [startHour, startMin] = startTime.split(':').map(Number)
+                          const [endHour, endMin] = activity.endTime.split(':').map(Number)
+                          const startMinutes = startHour * 60 + startMin
+                          const endMinutes = endHour * 60 + endMin
+                          const diffMinutes = endMinutes - startMinutes
+                          const hours = diffMinutes / 60
+                          handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
+                        }
+                      }}
+                      required
+                      className="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="">--</option>
+                      {[0, 10, 20, 30, 40, 50].map((m) => (
+                        <option key={m} value={String(m).padStart(2, '0')}>
+                          {String(m).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <span className="text-gray-600">〜</span>
-                  <input
-                    type="time"
-                    value={activity.endTime || ''}
-                    placeholder="終了時刻"
-                    onChange={(e) => {
-                      const endTime = e.target.value
-                      handleActivityChange(index, 'endTime', endTime)
-                      const startTimeInput = e.target.previousElementSibling?.previousElementSibling as HTMLInputElement
-                      if (startTimeInput?.value && endTime) {
-                        const [startHour, startMin] = startTimeInput.value.split(':').map(Number)
-                        const [endHour, endMin] = endTime.split(':').map(Number)
-                        const startMinutes = startHour * 60 + startMin
-                        const endMinutes = endHour * 60 + endMin
-                        const diffMinutes = endMinutes - startMinutes
-                        const hours = diffMinutes / 60
-                        handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
-                      }
-                    }}
-                    required
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                  />
+
+                  {/* 終了時刻 */}
+                  <div className="flex gap-1 items-center">
+                    <select
+                      value={activity.endTime ? activity.endTime.split(':')[0] : ''}
+                      onChange={(e) => {
+                        const hour = e.target.value
+                        const min = activity.endTime ? activity.endTime.split(':')[1] : '00'
+                        const endTime = `${hour}:${min}`
+                        handleActivityChange(index, 'endTime', endTime)
+                        if (activity.startTime) {
+                          const [startHour, startMin] = activity.startTime.split(':').map(Number)
+                          const [endHour, endMin] = endTime.split(':').map(Number)
+                          const startMinutes = startHour * 60 + startMin
+                          const endMinutes = endHour * 60 + endMin
+                          const diffMinutes = endMinutes - startMinutes
+                          const hours = diffMinutes / 60
+                          handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
+                        }
+                      }}
+                      required
+                      className="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="">--</option>
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={String(h).padStart(2, '0')}>
+                          {String(h).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-gray-600">:</span>
+                    <select
+                      value={activity.endTime ? activity.endTime.split(':')[1] : ''}
+                      onChange={(e) => {
+                        const hour = activity.endTime ? activity.endTime.split(':')[0] : '00'
+                        const min = e.target.value
+                        const endTime = `${hour}:${min}`
+                        handleActivityChange(index, 'endTime', endTime)
+                        if (activity.startTime) {
+                          const [startHour, startMin] = activity.startTime.split(':').map(Number)
+                          const [endHour, endMin] = endTime.split(':').map(Number)
+                          const startMinutes = startHour * 60 + startMin
+                          const endMinutes = endHour * 60 + endMin
+                          const diffMinutes = endMinutes - startMinutes
+                          const hours = diffMinutes / 60
+                          handleActivityChange(index, 'workingHours', parseFloat(hours.toFixed(2)))
+                        }
+                      }}
+                      required
+                      className="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="">--</option>
+                      {[0, 10, 20, 30, 40, 50].map((m) => (
+                        <option key={m} value={String(m).padStart(2, '0')}>
+                          {String(m).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 {activity.workingHours > 0 && (
                   <p className="text-sm text-gray-600 mt-1">
@@ -254,15 +336,27 @@ export default function DailyReportForm({
                   onChange={(e) =>
                     handleActivityChange(index, 'issues', e.target.value)
                   }
+                  onInput={(e) => autoResize(e.currentTarget)}
                   required
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
                   placeholder="この活動に関する課題を記入してください"
                 />
               </div>
             </div>
           </div>
         ))}
+
+        <div className="flex justify-end mt-4">
+          <button
+            type="button"
+            onClick={addActivity}
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <span className="text-lg">+</span>
+            活動を追加
+          </button>
+        </div>
       </div>
 
       <div>
@@ -274,9 +368,10 @@ export default function DailyReportForm({
           name="improvements"
           value={formData.improvements}
           onChange={handleChange}
+          onInput={(e) => autoResize(e.currentTarget)}
           required
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
           placeholder="全体的な改善点や気づいたことを記入してください"
         />
       </div>
@@ -290,9 +385,10 @@ export default function DailyReportForm({
           name="happyMoments"
           value={formData.happyMoments}
           onChange={handleChange}
+          onInput={(e) => autoResize(e.currentTarget)}
           required
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
           placeholder="嬉しかったことや感動したことを記入してください"
         />
       </div>
@@ -306,9 +402,10 @@ export default function DailyReportForm({
           name="futureTasks"
           value={formData.futureTasks}
           onChange={handleChange}
+          onInput={(e) => autoResize(e.currentTarget)}
           required
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-900 placeholder:text-gray-400 overflow-hidden"
           placeholder="今後のタスクを記入してください"
         />
       </div>

@@ -47,12 +47,6 @@ export default function DailyReportList({ reports }: DailyReportListProps) {
 
             <div className="space-y-2 text-sm">
               <div>
-                <span className="font-medium text-gray-700">本日の目標: </span>
-                <span className="text-gray-600 line-clamp-1">
-                  {report.quarterlyGoal}
-                </span>
-              </div>
-              <div>
                 <span className="font-medium text-gray-700">活動件数: </span>
                 <span className="text-gray-600">
                   {report.activities.length}件

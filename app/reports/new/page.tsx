@@ -50,7 +50,10 @@ export default function NewReportPage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-md">
-            <DailyReportForm onSubmit={handleSubmit} />
+            <DailyReportForm
+              onSubmit={handleSubmit}
+              initialData={{ date: new Date() }}
+            />
           </div>
         </div>
       </div>
