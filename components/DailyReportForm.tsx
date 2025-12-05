@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { CreateDailyReportInput, CreateActivityInput } from '@/types/daily-report'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface DailyReportFormProps {
   onSubmit: (data: CreateDailyReportInput) => Promise<void>
@@ -33,6 +34,7 @@ export default function DailyReportForm({
     ],
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteActivityIndex, setDeleteActivityIndex] = useState<number | null>(null)
 
 
   // テキストエリアの自動リサイズ関数
@@ -154,8 +156,8 @@ export default function DailyReportForm({
               <h4 className="font-semibold text-gray-700">活動 {index + 1}</h4>
               <button
                 type="button"
-                onClick={() => removeActivity(index)}
-                className="text-red-500 hover:text-red-700 text-sm font-medium"
+                onClick={() => setDeleteActivityIndex(index)}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
               >
                 削除
               </button>
@@ -417,6 +419,19 @@ export default function DailyReportForm({
       >
         {isSubmitting ? '送信中...' : isEditing ? '更新' : '作成'}
       </button>
+
+      <ConfirmDialog
+        isOpen={deleteActivityIndex !== null}
+        onClose={() => setDeleteActivityIndex(null)}
+        onConfirm={() => {
+          if (deleteActivityIndex !== null) {
+            removeActivity(deleteActivityIndex)
+            setDeleteActivityIndex(null)
+          }
+        }}
+        title="活動を削除しますか？"
+        message={`活動 ${deleteActivityIndex !== null ? deleteActivityIndex + 1 : ''} を削除します。この操作は取り消せません。`}
+      />
     </form>
   )
 }

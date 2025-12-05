@@ -7,6 +7,7 @@ import { Activity, DailyReport, CreateDailyReportInput } from '@/types/daily-rep
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Header from '@/components/Header'
 import DailyReportForm from '@/components/DailyReportForm'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 export default function ReportDetailPage() {
   const params = useParams()
@@ -15,6 +16,7 @@ export default function ReportDetailPage() {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   useEffect(() => {
     loadReport()
@@ -59,6 +61,26 @@ export default function ReportDetailPage() {
     } catch (error) {
       console.error('更新エラー:', error)
       alert('更新に失敗しました')
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const res = await fetch(`/api/reports/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        router.push('/')
+        router.refresh()
+      } else {
+        const error = await res.json()
+        alert(error.error || '削除に失敗しました')
+      }
+    } catch (error) {
+      console.error('削除エラー:', error)
+      alert('削除に失敗しました')
     }
   }
 
@@ -176,12 +198,20 @@ export default function ReportDetailPage() {
                 日報詳細
               </h1>
             </div>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              編集
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                削除
+              </button>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                編集
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-8">
@@ -301,6 +331,17 @@ export default function ReportDetailPage() {
           </div>
           </div>
         </div>
+
+        <ConfirmDialog
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={() => {
+            setShowDeleteDialog(false)
+            handleDelete()
+          }}
+          title="日報を削除しますか？"
+          message="この操作は取り消せません。本当に削除してもよろしいですか？"
+        />
       </div>
     </ProtectedRoute>
   )
