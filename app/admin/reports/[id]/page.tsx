@@ -1,50 +1,53 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { Activity, DailyReportWithUser } from '@/types/daily-report'
-import AdminRoute from '@/components/AdminRoute'
-import Header from '@/components/Header'
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Activity, DailyReportWithUser } from "@/types/daily-report";
+import AdminRoute from "@/components/AdminRoute";
+import Header from "@/components/Header";
 
 export default function AdminReportDetailPage() {
-  const params = useParams()
-  const id = params.id as string
-  const [report, setReport] = useState<DailyReportWithUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const params = useParams();
+  const id = params.id as string;
+  const [report, setReport] = useState<DailyReportWithUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadReport()
-  }, [id])
+    loadReport();
+  }, [id]);
 
   const loadReport = async () => {
     try {
       // 管理者APIから特定の日報を取得（userIdでフィルタリング）
-      const res = await fetch(`/api/admin/reports?userId=&startDate=&endDate=`, {
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `/api/admin/reports?userId=&startDate=&endDate=`,
+        {
+          credentials: "include",
+        }
+      );
       if (res.ok) {
-        const data = await res.json()
-        const targetReport = data.find((r: any) => r.id === id)
+        const data = await res.json();
+        const targetReport = data.find((r: any) => r.id === id);
         if (targetReport) {
-          setReport(targetReport)
+          setReport(targetReport);
         }
       }
     } catch (error) {
-      console.error('レポート取得エラー:', error)
+      console.error("レポート取得エラー:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short',
-    })
-  }
+    return new Date(date).toLocaleDateString("ja-JP", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+  };
 
   if (loading) {
     return (
@@ -56,7 +59,7 @@ export default function AdminReportDetailPage() {
           </div>
         </div>
       </AdminRoute>
-    )
+    );
   }
 
   if (!report) {
@@ -67,14 +70,17 @@ export default function AdminReportDetailPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center py-12">
               <p className="text-gray-600">日報が見つかりません</p>
-              <Link href="/admin" className="text-blue-500 hover:text-blue-600 mt-4 inline-block">
+              <Link
+                href="/admin"
+                className="text-blue-500 hover:text-blue-600 mt-4 inline-block"
+              >
                 管理画面に戻る
               </Link>
             </div>
           </div>
         </div>
       </AdminRoute>
-    )
+    );
   }
 
   return (
@@ -98,7 +104,9 @@ export default function AdminReportDetailPage() {
           <div className="bg-white rounded-lg shadow-md p-8">
             {/* 社員情報 */}
             <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-medium text-gray-600 mb-1">社員情報</h3>
+              <h3 className="text-sm font-medium text-gray-600 mb-1">
+                社員情報
+              </h3>
               <p className="text-lg font-semibold text-gray-900">
                 {report.user.employeeName}
               </p>
@@ -112,7 +120,7 @@ export default function AdminReportDetailPage() {
                 {formatDate(report.date)}
               </h2>
               <p className="text-sm text-gray-500">
-                最終更新: {new Date(report.updatedAt).toLocaleString('ja-JP')}
+                最終更新: {new Date(report.updatedAt).toLocaleString("ja-JP")}
               </p>
             </div>
 
@@ -123,7 +131,7 @@ export default function AdminReportDetailPage() {
                 </h3>
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <p className="text-gray-700 whitespace-pre-wrap">
-                    {report.quarterlyGoal}
+                    {report.dailyGoal}
                   </p>
                 </div>
               </div>
@@ -134,12 +142,22 @@ export default function AdminReportDetailPage() {
                     活動セクション
                   </h3>
                   <span className="text-sm text-gray-600">
-                    合計稼働時間: {report.activities.reduce((sum: number, a: Activity) => sum + a.workingHours, 0).toFixed(1)}時間
+                    合計稼働時間:{" "}
+                    {report.activities
+                      .reduce(
+                        (sum: number, a: Activity) => sum + a.workingHours,
+                        0
+                      )
+                      .toFixed(1)}
+                    時間
                   </span>
                 </div>
 
                 {report.activities.map((activity: Activity, index: number) => (
-                  <div key={activity.id} className="mb-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div
+                    key={activity.id}
+                    className="mb-4 bg-gray-50 rounded-lg p-4 border border-gray-200"
+                  >
                     <div className="mb-3">
                       <span className="inline-block bg-blue-500 text-white text-xs px-2 py-1 rounded">
                         活動 {index + 1}
@@ -154,14 +172,18 @@ export default function AdminReportDetailPage() {
 
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">活動内容:</p>
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          活動内容:
+                        </p>
                         <p className="text-gray-600 whitespace-pre-wrap text-sm pl-2">
                           {activity.content}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">課題:</p>
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          課題:
+                        </p>
                         <p className="text-gray-600 whitespace-pre-wrap text-sm pl-2">
                           {activity.issues}
                         </p>
@@ -208,5 +230,5 @@ export default function AdminReportDetailPage() {
         </div>
       </div>
     </AdminRoute>
-  )
+  );
 }

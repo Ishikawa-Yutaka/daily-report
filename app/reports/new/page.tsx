@@ -1,37 +1,40 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
-import DailyReportForm from '@/components/DailyReportForm'
-import { CreateDailyReportInput } from '@/types/daily-report'
-import Link from 'next/link'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import Header from '@/components/Header'
+import { useRouter } from "next/navigation";
+import DailyReportForm from "@/components/DailyReportForm";
+import { CreateDailyReportInput } from "@/types/daily-report";
+import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Header from "@/components/Header";
 
 export default function NewReportPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleSubmit = async (data: CreateDailyReportInput) => {
     try {
-      const res = await fetch('/api/reports', {
-        method: 'POST',
+      const res = await fetch("/api/reports", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-        credentials: 'include',
-      })
+        credentials: "include",
+      });
 
       if (!res.ok) {
-        throw new Error('作成に失敗しました')
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.error || "作成に失敗しました";
+        alert(errorMessage);
+        return;
       }
 
-      router.push('/')
-      router.refresh()
+      router.push("/");
+      router.refresh();
     } catch (error) {
-      console.error('エラー:', error)
-      alert('日報の作成に失敗しました')
+      console.error("エラー:", error);
+      alert("日報の作成に失敗しました");
     }
-  }
+  };
 
   return (
     <ProtectedRoute>
@@ -58,5 +61,5 @@ export default function NewReportPage() {
         </div>
       </div>
     </ProtectedRoute>
-  )
+  );
 }
