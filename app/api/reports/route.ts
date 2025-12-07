@@ -10,11 +10,30 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
+    // クエリパラメータから期間フィルター条件を取得
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    // フィルター条件を構築
+    const where: any = {
+      userId: user.userId,
+    };
+
+    // 期間フィルターを適用
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) {
+        where.date.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.date.lte = new Date(endDate);
+      }
+    }
+
     // ログインユーザーの日報のみ取得
     const reports = await prisma.dailyReport.findMany({
-      where: {
-        userId: user.userId,
-      },
+      where,
       include: {
         activities: {
           orderBy: {

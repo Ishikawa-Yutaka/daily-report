@@ -15,20 +15,127 @@ type SortOption =
   | "hours-desc"
   | "hours-asc";
 
+// 期間プリセットの種類
+type DatePreset = "all" | "today" | "week" | "month" | "quarter" | "custom";
+
+/**
+ * 期間プリセットに基づいて開始日と終了日を計算する関数
+ * @param preset - 期間プリセット（all, today, week, month, quarter, custom）
+ * @param customStart - カスタム開始日（preset="custom"の場合に使用）
+ * @param customEnd - カスタム終了日（preset="custom"の場合に使用）
+ * @returns {startDate, endDate} - ISO形式の日付文字列、またはnull
+ */
+function getDateRange(
+  preset: DatePreset,
+  customStart: string,
+  customEnd: string
+): { startDate: string | null; endDate: string | null } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  switch (preset) {
+    case "all":
+      // すべての期間を表示（フィルターなし）
+      return { startDate: null, endDate: null };
+
+    case "today":
+      // 今日のみ
+      return {
+        startDate: today.toISOString().split("T")[0],
+        endDate: today.toISOString().split("T")[0],
+      };
+
+    case "week": {
+      // 今週（月曜日から日曜日）
+      const dayOfWeek = today.getDay(); // 0=日曜, 1=月曜, ..., 6=土曜
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 月曜日への日数オフセット
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + mondayOffset);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      return {
+        startDate: monday.toISOString().split("T")[0],
+        endDate: sunday.toISOString().split("T")[0],
+      };
+    }
+
+    case "month": {
+      // 今月（1日から月末）
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      return {
+        startDate: firstDay.toISOString().split("T")[0],
+        endDate: lastDay.toISOString().split("T")[0],
+      };
+    }
+
+    case "quarter": {
+      // 今四半期（1-3月、4-6月、7-9月、10-12月）
+      const currentMonth = today.getMonth(); // 0-11
+      const quarterStartMonth = Math.floor(currentMonth / 3) * 3; // 0, 3, 6, 9
+      const firstDay = new Date(today.getFullYear(), quarterStartMonth, 1);
+      const lastDay = new Date(today.getFullYear(), quarterStartMonth + 3, 0);
+
+      return {
+        startDate: firstDay.toISOString().split("T")[0],
+        endDate: lastDay.toISOString().split("T")[0],
+      };
+    }
+
+    case "custom":
+      // カスタム期間
+      return {
+        startDate: customStart || null,
+        endDate: customEnd || null,
+      };
+
+    default:
+      return { startDate: null, endDate: null };
+  }
+}
+
 export default function Home() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+  // 期間フィルター関連の状態
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   useEffect(() => {
     loadReports();
-  }, []);
+  }, [datePreset, customStartDate, customEndDate]);
 
   const loadReports = async () => {
     try {
-      const res = await fetch("/api/reports", {
+      // 期間フィルターのパラメータを構築
+      let url = "/api/reports";
+      const params = new URLSearchParams();
+
+      // プリセットまたはカスタム期間に基づいて開始日・終了日を設定
+      const { startDate, endDate } = getDateRange(
+        datePreset,
+        customStartDate,
+        customEndDate
+      );
+
+      if (startDate) {
+        params.append("startDate", startDate);
+      }
+      if (endDate) {
+        params.append("endDate", endDate);
+      }
+
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      const res = await fetch(url, {
         credentials: "include",
       });
       if (res.ok) {
@@ -148,6 +255,9 @@ export default function Home() {
     setSearchKeyword("");
     setSelectedProjects([]);
     setSortOption("date-desc");
+    setDatePreset("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
   };
 
   return (
@@ -168,6 +278,111 @@ export default function Home() {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   検索・フィルター
                 </h2>
+
+                {/* 期間フィルター */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    期間
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <button
+                      onClick={() => setDatePreset("all")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "all"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      すべて
+                    </button>
+                    <button
+                      onClick={() => setDatePreset("today")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "today"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      今日
+                    </button>
+                    <button
+                      onClick={() => setDatePreset("week")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "week"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      今週
+                    </button>
+                    <button
+                      onClick={() => setDatePreset("month")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "month"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      今月
+                    </button>
+                    <button
+                      onClick={() => setDatePreset("quarter")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "quarter"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      今四半期
+                    </button>
+                    <button
+                      onClick={() => setDatePreset("custom")}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        datePreset === "custom"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      カスタム
+                    </button>
+                  </div>
+
+                  {/* カスタム期間入力 */}
+                  {datePreset === "custom" && (
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                      <div className="flex-1">
+                        <label
+                          htmlFor="customStartDate"
+                          className="block text-xs text-gray-600 mb-1"
+                        >
+                          開始日
+                        </label>
+                        <input
+                          type="date"
+                          id="customStartDate"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label
+                          htmlFor="customEndDate"
+                          className="block text-xs text-gray-600 mb-1"
+                        >
+                          終了日
+                        </label>
+                        <input
+                          type="date"
+                          id="customEndDate"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* キーワード検索 */}
                 <div className="mb-4">
@@ -259,7 +474,8 @@ export default function Home() {
                   </div>
                   {(searchKeyword ||
                     selectedProjects.length > 0 ||
-                    sortOption !== "date-desc") && (
+                    sortOption !== "date-desc" ||
+                    datePreset !== "all") && (
                     <button
                       onClick={handleResetFilters}
                       className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors text-sm font-medium"

@@ -1,10 +1,11 @@
 # 日報管理システム
 
-社員の日報を管理するWebアプリケーションです。JWT認証による安全なユーザー管理と、管理者による権限管理機能を備えています。
+社員の日報を管理する Web アプリケーションです。JWT 認証による安全なユーザー管理と、管理者による権限管理機能を備えています。
 
 ## 主な機能
 
 ### 一般ユーザー機能
+
 - ユーザー登録・ログイン（社員番号・パスワード・社員名）
 - 日報の作成・編集・閲覧
 - 同じ日付の日報作成防止機能
@@ -20,11 +21,13 @@
 - これからのタスクの記録
 - 日報詳細ページからの直接編集機能
 - 検索・フィルター機能
+  - 期間フィルター（すべて、今日、今週、今月、今四半期、カスタム期間）
   - キーワード検索（本日の目標、活動内容、課題などを全文検索）
   - プロジェクト/カテゴリーフィルター（複数選択可能）
   - 並び替え機能（日付、更新日時、稼働時間でソート）
 
 ### 管理者機能
+
 - 管理者専用ログイン画面（`/admin/login`）
 - 全社員の日報閲覧
 - 社員・日付によるフィルタリング
@@ -73,23 +76,24 @@ bun install
 
 ### 3. データベースのセットアップ
 
-#### Prismaクライアントの生成
+#### Prisma クライアントの生成
+
 ```bash
 npx prisma generate
 ```
 
 #### データベースマイグレーションの実行
 
-`MIGRATION.md`を参照して、SupabaseのSQLエディタで以下の順番でSQLを実行してください：
+`MIGRATION.md`を参照して、Supabase の SQL エディタで以下の順番で SQL を実行してください：
 
-1. Usersテーブルの作成
-2. Activitiesテーブルの作成
-3. AdminLogテーブルの作成
-4. DailyReportsテーブルの更新
+1. Users テーブルの作成
+2. Activities テーブルの作成
+3. AdminLog テーブルの作成
+4. DailyReports テーブルの更新
 
 #### 初回管理者の作成
 
-最初の管理者は、SupabaseのSQLエディタで直接作成します：
+最初の管理者は、Supabase の SQL エディタで直接作成します：
 
 ```sql
 -- パスワードをハッシュ化（例: "password123"）
@@ -104,11 +108,11 @@ VALUES (
 );
 ```
 
-パスワードのハッシュ化は、Node.jsで以下のように実行できます：
+パスワードのハッシュ化は、Node.js で以下のように実行できます：
 
 ```javascript
-const bcrypt = require('bcryptjs');
-const hash = bcrypt.hashSync('your-password', 10);
+const bcrypt = require("bcryptjs");
+const hash = bcrypt.hashSync("your-password", 10);
 console.log(hash);
 ```
 
@@ -134,7 +138,9 @@ bun dev
 2. **ログイン**: `/login` で社員番号・パスワードを入力
 3. **日報作成**: ホーム画面の「+」ボタンから新規日報を作成（同じ日付の日報は作成不可）
 4. **日報閲覧**: ホーム画面で自分の日報一覧を確認
-5. **検索・フィルター**: キーワード検索、プロジェクトフィルター、並び替え機能を利用
+5. **検索・フィルター**: 期間フィルター、キーワード検索、プロジェクトフィルター、並び替え機能を利用
+   - 期間プリセット：すべて、今日、今週、今月、今四半期
+   - カスタム期間：開始日・終了日を指定して絞り込み
 6. **日報編集**: 日報詳細ページから編集可能（日報全体の削除は不可、活動の削除は可能）
 
 ### 管理者
@@ -148,7 +154,7 @@ bun dev
 
 1. 既存の管理者が `/admin/users` にアクセス
 2. 対象社員の「管理者に昇格」ボタンをクリック
-3. 確認ダイアログでOKをクリック
+3. 確認ダイアログで OK をクリック
 4. 操作は自動的にログに記録されます
 
 ## プロジェクト構造
@@ -191,6 +197,7 @@ web/
 ## データベーススキーマ
 
 ### User（ユーザー）
+
 - id: UUID
 - employeeNumber: 社員番号（ユニーク）
 - employeeName: 社員名
@@ -200,50 +207,53 @@ web/
 - updatedAt: 更新日時
 
 ### DailyReport（日報）
+
 - id: UUID
 - date: 日付
 - dailyGoal: 本日の目標
 - improvements: 改善点・気づき
 - happyMoments: 嬉しかったこと・感動したこと
 - futureTasks: これからのタスク
-- userId: ユーザーID（外部キー）
+- userId: ユーザー ID（外部キー）
 - createdAt: 作成日時
 - updatedAt: 更新日時
 
 ### Activity（活動）
+
 - id: UUID
-- reportId: 日報ID（外部キー）
+- reportId: 日報 ID（外部キー）
 - projectCategory: プロジェクト/カテゴリー
 - content: 活動内容
 - workingHours: 稼働時間（時間）
-- startTime: 開始時刻（HH:mm形式）
-- endTime: 終了時刻（HH:mm形式）
+- startTime: 開始時刻（HH:mm 形式）
+- endTime: 終了時刻（HH:mm 形式）
 - issues: 課題
 - order: 表示順
 - createdAt: 作成日時
 - updatedAt: 更新日時
 
 ### AdminLog（管理者操作ログ）
+
 - id: UUID
-- adminId: 管理者ID（外部キー）
+- adminId: 管理者 ID（外部キー）
 - actionType: 操作タイプ（LOGIN, LOGOUT, VIEW_REPORT, etc.）
-- targetUserId: 対象ユーザーID
-- targetReportId: 対象日報ID
+- targetUserId: 対象ユーザー ID
+- targetReportId: 対象日報 ID
 - details: 詳細情報
-- ipAddress: IPアドレス
+- ipAddress: IP アドレス
 - createdAt: 作成日時
 
 ## セキュリティ
 
-- パスワードはbcryptでハッシュ化（salt rounds: 10）
-- JWTトークンはhttpOnly Cookieに保存
-- トークン有効期限: 7日間
-- 管理者APIは全てADMIN権限チェック
+- パスワードは bcrypt でハッシュ化（salt rounds: 10）
+- JWT トークンは httpOnly Cookie に保存
+- トークン有効期限: 7 日間
+- 管理者 API は全て ADMIN 権限チェック
 - 管理者の操作は全てログに記録
 
 ## トラブルシューティング
 
-### Prismaクライアント生成エラー
+### Prisma クライアント生成エラー
 
 ```bash
 npx prisma generate
@@ -252,19 +262,19 @@ npx prisma generate
 ### データベース接続エラー
 
 - `.env`ファイルの`DATABASE_URL`が正しいか確認
-- Supabaseプロジェクトが起動しているか確認
+- Supabase プロジェクトが起動しているか確認
 
 ### 管理者でログインできない
 
 - ユーザーの`role`が`ADMIN`に設定されているか確認
-- SQLで確認: `SELECT * FROM users WHERE employee_number = 'ADMIN001';`
+- SQL で確認: `SELECT * FROM users WHERE employee_number = 'ADMIN001';`
 
 ## デプロイ
 
-### Vercelへのデプロイ
+### Vercel へのデプロイ
 
-1. GitHubにプッシュ
-2. Vercelでプロジェクトをインポート
+1. GitHub にプッシュ
+2. Vercel でプロジェクトをインポート
 3. 環境変数を設定（`DATABASE_URL`, `JWT_SECRET`）
 4. デプロイ
 
@@ -276,4 +286,4 @@ npx prisma generate
 
 ## サポート
 
-問題が発生した場合は、GitHubのIssuesで報告してください。
+問題が発生した場合は、GitHub の Issues で報告してください。
