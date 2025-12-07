@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import AdminRoute from '@/components/AdminRoute'
 import Header from '@/components/Header'
 import { DailyReportWithUser } from '@/types/daily-report'
+import { DatePreset, getDateRange } from '@/lib/dateUtils'
 
 interface UserSummary {
   id: string
@@ -14,13 +15,30 @@ interface UserSummary {
   reportsCount: number
 }
 
+// 並び替えオプション
+type SortOption =
+  | "date-desc"
+  | "date-asc"
+  | "updated-desc"
+  | "updated-asc"
+  | "hours-desc"
+  | "hours-asc";
+
 export default function AdminDashboard() {
   const [reports, setReports] = useState<DailyReportWithUser[]>([])
   const [users, setUsers] = useState<UserSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
+
+  // 期間フィルター関連
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  // 検索・フィルター関連
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [sortOption, setSortOption] = useState<SortOption>("date-desc");
 
   useEffect(() => {
     loadData()
@@ -55,7 +73,16 @@ export default function AdminDashboard() {
   const loadReports = async () => {
     try {
       const params = new URLSearchParams()
+
+      // 社員フィルター
       if (selectedUserId) params.append('userId', selectedUserId)
+
+      // 期間フィルター（プリセットまたはカスタム）
+      const { startDate, endDate } = getDateRange(
+        datePreset,
+        customStartDate,
+        customEndDate
+      );
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
 
@@ -77,10 +104,22 @@ export default function AdminDashboard() {
 
   const handleReset = () => {
     setSelectedUserId('')
-    setStartDate('')
-    setEndDate('')
+    setDatePreset("all")
+    setCustomStartDate('')
+    setCustomEndDate('')
+    setSearchKeyword('')
+    setSelectedProjects([])
+    setSortOption("date-desc")
     setTimeout(() => loadReports(), 0)
   }
+
+  const handleProjectToggle = (project: string) => {
+    setSelectedProjects((prev) =>
+      prev.includes(project)
+        ? prev.filter((p) => p !== project)
+        : [...prev, project]
+    );
+  };
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('ja-JP', {
@@ -94,6 +133,90 @@ export default function AdminDashboard() {
   const getTotalHours = (report: DailyReportWithUser) => {
     return report.activities.reduce((sum, a) => sum + a.workingHours, 0)
   }
+
+  // 利用可能なプロジェクト一覧を取得
+  const availableProjects = useMemo(() => {
+    const projects = new Set<string>();
+    reports.forEach((report) => {
+      report.activities.forEach((activity) => {
+        if (activity.projectCategory) {
+          projects.add(activity.projectCategory);
+        }
+      });
+    });
+    return Array.from(projects).sort();
+  }, [reports]);
+
+  // フィルター・検索・並び替えを適用
+  const filteredAndSortedReports = useMemo(() => {
+    let filtered = [...reports];
+
+    // キーワード検索
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase().trim();
+      filtered = filtered.filter((report) => {
+        // 日報の基本情報を検索
+        const matchesBasicInfo =
+          report.dailyGoal.toLowerCase().includes(keyword) ||
+          report.improvements.toLowerCase().includes(keyword) ||
+          report.happyMoments.toLowerCase().includes(keyword) ||
+          report.futureTasks.toLowerCase().includes(keyword) ||
+          report.user.employeeName.toLowerCase().includes(keyword) ||
+          report.user.employeeNumber.toLowerCase().includes(keyword);
+
+        // 活動セクションを検索
+        const matchesActivities = report.activities.some(
+          (activity) =>
+            activity.projectCategory.toLowerCase().includes(keyword) ||
+            activity.content.toLowerCase().includes(keyword) ||
+            activity.issues.toLowerCase().includes(keyword)
+        );
+
+        return matchesBasicInfo || matchesActivities;
+      });
+    }
+
+    // プロジェクトフィルター
+    if (selectedProjects.length > 0) {
+      filtered = filtered.filter((report) =>
+        report.activities.some((activity) =>
+          selectedProjects.includes(activity.projectCategory)
+        )
+      );
+    }
+
+    // 並び替え
+    filtered.sort((a, b) => {
+      switch (sortOption) {
+        case "date-desc":
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        case "date-asc":
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        case "updated-desc":
+          return (
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+        case "updated-asc":
+          return (
+            new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+          );
+        case "hours-desc": {
+          const hoursA = getTotalHours(a);
+          const hoursB = getTotalHours(b);
+          return hoursB - hoursA;
+        }
+        case "hours-asc": {
+          const hoursA = getTotalHours(a);
+          const hoursB = getTotalHours(b);
+          return hoursA - hoursB;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [reports, searchKeyword, selectedProjects, sortOption]);
 
   if (loading) {
     return (
@@ -167,66 +290,244 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
-          {/* フィルターセクション */}
+          {/* 検索・フィルターセクション */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">フィルター</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  社員
-                </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              検索・フィルター
+            </h2>
+
+            {/* 期間フィルター */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                期間
+              </label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  onClick={() => setDatePreset("all")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "all"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
                 >
-                  <option value="">全社員</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.employeeName} ({user.employeeNumber})
-                    </option>
-                  ))}
-                </select>
+                  すべて
+                </button>
+                <button
+                  onClick={() => setDatePreset("today")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "today"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  今日
+                </button>
+                <button
+                  onClick={() => setDatePreset("week")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "week"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  今週
+                </button>
+                <button
+                  onClick={() => setDatePreset("month")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "month"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  今月
+                </button>
+                <button
+                  onClick={() => setDatePreset("quarter")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "quarter"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  今四半期
+                </button>
+                <button
+                  onClick={() => setDatePreset("custom")}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    datePreset === "custom"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  カスタム
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  開始日
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              {/* カスタム期間入力 */}
+              {datePreset === "custom" && (
+                <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                  <div className="flex-1">
+                    <label
+                      htmlFor="customStartDate"
+                      className="block text-xs text-gray-600 mb-1"
+                    >
+                      開始日
+                    </label>
+                    <input
+                      type="date"
+                      id="customStartDate"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label
+                      htmlFor="customEndDate"
+                      className="block text-xs text-gray-600 mb-1"
+                    >
+                      終了日
+                    </label>
+                    <input
+                      type="date"
+                      id="customEndDate"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  終了日
-                </label>
+            {/* 社員フィルター */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                社員
+              </label>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              >
+                <option value="">全社員</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.employeeName} ({user.employeeNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* キーワード検索 */}
+            <div className="mb-4">
+              <label
+                htmlFor="search"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                キーワード検索
+              </label>
+              <div className="flex gap-2">
                 <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  type="text"
+                  id="search"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  placeholder="本日の目標、活動内容、社員名などを検索..."
+                  className="flex-1 border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-400"
                 />
+                {searchKeyword && (
+                  <button
+                    onClick={() => setSearchKeyword("")}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    aria-label="検索をクリア"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={handleFilter}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            {/* プロジェクトフィルター */}
+            {availableProjects.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  プロジェクト/カテゴリー
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableProjects.map((project) => (
+                    <button
+                      key={project}
+                      onClick={() => handleProjectToggle(project)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        selectedProjects.includes(project)
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      {project}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 並び替え */}
+            <div className="mb-4">
+              <label
+                htmlFor="sort"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
-                フィルター適用
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                並び替え
+              </label>
+              <select
+                id="sort"
+                value={sortOption}
+                onChange={(e) =>
+                  setSortOption(e.target.value as SortOption)
+                }
+                className="w-full md:w-auto border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               >
-                リセット
-              </button>
+                <option value="date-desc">日付（新しい順）</option>
+                <option value="date-asc">日付（古い順）</option>
+                <option value="updated-desc">更新日時（新しい順）</option>
+                <option value="updated-asc">更新日時（古い順）</option>
+                <option value="hours-desc">稼働時間（多い順）</option>
+                <option value="hours-asc">稼働時間（少ない順）</option>
+              </select>
+            </div>
+
+            {/* フィルター適用・リセットボタン & 結果件数 */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                {filteredAndSortedReports.length}件の日報が表示されています
+                {reports.length !== filteredAndSortedReports.length && (
+                  <span className="ml-2 text-gray-500">
+                    （全{reports.length}件中）
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleFilter}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium"
+                >
+                  フィルター適用
+                </button>
+                {(selectedUserId ||
+                  datePreset !== "all" ||
+                  searchKeyword ||
+                  selectedProjects.length > 0 ||
+                  sortOption !== "date-desc") && (
+                  <button
+                    onClick={handleReset}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors text-sm font-medium"
+                  >
+                    リセット
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -237,13 +538,13 @@ export default function AdminDashboard() {
               <p className="text-3xl font-bold text-blue-600">{users.length}</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-sm font-medium text-gray-600 mb-2">日報総数</h3>
-              <p className="text-3xl font-bold text-green-600">{reports.length}</p>
+              <h3 className="text-sm font-medium text-gray-600 mb-2">日報件数（表示中）</h3>
+              <p className="text-3xl font-bold text-green-600">{filteredAndSortedReports.length}</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-sm font-medium text-gray-600 mb-2">総稼働時間</h3>
+              <h3 className="text-sm font-medium text-gray-600 mb-2">稼働時間（表示中）</h3>
               <p className="text-3xl font-bold text-purple-600">
-                {reports.reduce((sum, r) => sum + getTotalHours(r), 0).toFixed(1)}h
+                {filteredAndSortedReports.reduce((sum, r) => sum + getTotalHours(r), 0).toFixed(1)}h
               </p>
             </div>
           </div>
@@ -254,7 +555,7 @@ export default function AdminDashboard() {
               <h2 className="text-xl font-semibold text-gray-900">日報一覧</h2>
             </div>
 
-            {reports.length === 0 ? (
+            {filteredAndSortedReports.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 日報が見つかりません
               </div>
@@ -281,7 +582,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reports.map((report) => (
+                    {filteredAndSortedReports.map((report) => (
                       <tr key={report.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(report.date)}
