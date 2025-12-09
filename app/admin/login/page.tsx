@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [employeeNumber, setEmployeeNumber] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,19 +19,16 @@ export default function AdminLoginPage() {
     setLoading(true)
 
     try {
-      // 通常のログインAPIを使用
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ employeeNumber, password }),
+      // AuthContextのlogin関数を使用してユーザー状態を更新
+      await login(employeeNumber, password)
+
+      // ログイン後、ユーザー情報を再取得して管理者権限チェック
+      const res = await fetch('/api/auth/me', {
         credentials: 'include',
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'ログインに失敗しました')
+        throw new Error('ユーザー情報の取得に失敗しました')
       }
 
       const data = await res.json()
@@ -110,7 +109,7 @@ export default function AdminLoginPage() {
                 required
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
                 placeholder="EMP001"
               />
             </div>
@@ -125,7 +124,7 @@ export default function AdminLoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
                 placeholder="••••••••"
               />
             </div>

@@ -52,6 +52,14 @@ export async function PATCH(
       )
     }
 
+    // スーパーアドミンの保護: スーパーアドミンは降格できない
+    if (targetUser.isSuperAdmin && role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'スーパーアドミンの権限は変更できません' },
+        { status: 403 }
+      )
+    }
+
     // 権限を更新
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -61,6 +69,7 @@ export async function PATCH(
         employeeNumber: true,
         employeeName: true,
         role: true,
+        isSuperAdmin: true, // スーパーアドミンフラグも返す
         createdAt: true,
         updatedAt: true,
       },

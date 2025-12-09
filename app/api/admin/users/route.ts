@@ -33,6 +33,7 @@ export async function GET(request: Request) {
         employeeNumber: true,
         employeeName: true,
         role: true,
+        isSuperAdmin: true, // スーパーアドミンフラグも返す
         createdAt: true,
         _count: {
           select: {

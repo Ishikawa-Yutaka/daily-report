@@ -19,6 +19,12 @@
 2. **AdminLogテーブルの追加**: 管理者操作ログの記録
 3. **Enumの追加**: UserRole、AdminActionType
 
+### v3 → v4の主な変更点（スーパーアドミン機能追加）
+
+1. **Userテーブルの更新**: `isSuperAdmin`カラム追加（削除・降格不可能な管理者）
+2. **初回セットアップ機能**: 初回管理者作成画面を追加
+3. **セキュリティ強化**: スーパーアドミンの保護機能
+
 ## 移行手順
 
 ### ステップ1: Usersテーブルの作成
@@ -426,3 +432,45 @@ WHERE enumtypid = 'admin_action_type'::regtype;
 ## サポート
 
 移行中に問題が発生した場合は、エラーメッセージとともにログを確認してください。
+
+## v4マイグレーション: スーパーアドミン機能の追加
+
+### ステップ: isSuperAdminカラムの追加
+
+Supabase SQLエディタで以下のSQLを実行してください。
+
+```sql
+-- is_super_adminカラムを追加
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false;
+
+-- 既存の管理者をスーパーアドミンに設定する場合（オプション）
+-- UPDATE users SET is_super_admin = true WHERE role = 'ADMIN' LIMIT 1;
+```
+
+**注意**: 
+- 既存のアプリケーションでは、既存の管理者を手動でスーパーアドミンに設定する必要があります
+- 新規インストールでは、初回セットアップ画面(`/setup`)で自動的にスーパーアドミンが作成されます
+- スーパーアドミンは権限変更・削除が不可能です
+
+### v4マイグレーション後の確認事項
+
+1. `is_super_admin`カラムが正しく追加されているか確認
+   ```sql
+   SELECT column_name, data_type, column_default 
+   FROM information_schema.columns 
+   WHERE table_name = 'users' AND column_name = 'is_super_admin';
+   ```
+
+2. Prismaクライアントを再生成
+   ```bash
+   npx prisma generate
+   ```
+
+3. 初回セットアップ画面にアクセス可能か確認
+   - 管理者が0人の場合: `/setup` にアクセス可能
+   - 管理者が1人以上の場合: `/setup` は404を返す
+
+4. スーパーアドミンの保護機能が動作しているか確認
+   - スーパーアドミンの権限変更ボタンが非表示になっているか
+   - スーパーアドミンを降格・削除しようとするとエラーが返されるか

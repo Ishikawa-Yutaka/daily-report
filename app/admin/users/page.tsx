@@ -10,6 +10,7 @@ interface User {
   employeeNumber: string
   employeeName: string
   role: 'USER' | 'ADMIN'
+  isSuperAdmin: boolean // スーパーアドミンフラグ
   createdAt: string
   _count: {
     reports: number
@@ -149,15 +150,22 @@ export default function AdminUsersPage() {
                         {user.employeeName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {user.role === 'ADMIN' ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            管理者
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            一般ユーザー
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {user.role === 'ADMIN' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              管理者
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              一般ユーザー
+                            </span>
+                          )}
+                          {user.isSuperAdmin && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
+                              スーパー
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {user._count.reports}件
@@ -166,21 +174,27 @@ export default function AdminUsersPage() {
                         {new Date(user.createdAt).toLocaleDateString('ja-JP')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleRoleChange(user.id, user.role)}
-                          disabled={changingRole === user.id}
-                          className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                            user.role === 'ADMIN'
-                              ? 'bg-gray-500 hover:bg-gray-600 text-white'
-                              : 'bg-purple-500 hover:bg-purple-600 text-white'
-                          } disabled:bg-gray-300 disabled:cursor-not-allowed`}
-                        >
-                          {changingRole === user.id
-                            ? '変更中...'
-                            : user.role === 'ADMIN'
-                            ? '一般ユーザーに降格'
-                            : '管理者に昇格'}
-                        </button>
+                        {user.isSuperAdmin ? (
+                          <span className="text-gray-500 text-sm">
+                            変更不可
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleRoleChange(user.id, user.role)}
+                            disabled={changingRole === user.id}
+                            className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                              user.role === 'ADMIN'
+                                ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                                : 'bg-purple-500 hover:bg-purple-600 text-white'
+                            } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+                          >
+                            {changingRole === user.id
+                              ? '変更中...'
+                              : user.role === 'ADMIN'
+                              ? '一般ユーザーに降格'
+                              : '管理者に昇格'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -196,6 +210,7 @@ export default function AdminUsersPage() {
               <li>管理者は他の社員の日報を閲覧・検索できます</li>
               <li>権限変更の操作はすべてログに記録されます</li>
               <li>自分自身の権限を変更することもできますが、注意してください</li>
+              <li><strong>スーパーアドミン</strong>は削除・降格できない特別な管理者です（システム保護のため）</li>
             </ul>
           </div>
         </div>
