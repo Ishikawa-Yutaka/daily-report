@@ -19,19 +19,13 @@ export default function AdminReportDetailPage() {
 
   const loadReport = async () => {
     try {
-      // 管理者APIから特定の日報を取得（userIdでフィルタリング）
-      const res = await fetch(
-        `/api/admin/reports?userId=&startDate=&endDate=`,
-        {
-          credentials: "include",
-        }
-      );
+      // 管理者APIから特定の日報を取得（ログも記録される）
+      const res = await fetch(`/api/admin/reports/${id}`, {
+        credentials: "include",
+      });
       if (res.ok) {
         const data = await res.json();
-        const targetReport = data.find((r: any) => r.id === id);
-        if (targetReport) {
-          setReport(targetReport);
-        }
+        setReport(data);
       }
     } catch (error) {
       console.error("レポート取得エラー:", error);

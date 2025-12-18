@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
+import { createAdminLog, getIpAddress } from '@/lib/adminLog'
 
 // 管理者用: 全社員の日報取得（フィルタリング機能付き）
 export async function GET(request: Request) {
@@ -79,6 +80,21 @@ export async function GET(request: Request) {
       orderBy: {
         date: 'desc',
       },
+    })
+
+    // 日報一覧閲覧をログに記録
+    const filterDetails = []
+    if (userId) filterDetails.push(`社員ID: ${userId}`)
+    if (employeeNumber) filterDetails.push(`社員番号: ${employeeNumber}`)
+    if (startDate) filterDetails.push(`開始日: ${startDate}`)
+    if (endDate) filterDetails.push(`終了日: ${endDate}`)
+
+    await createAdminLog({
+      adminId: user.userId,
+      actionType: 'FILTER_REPORTS',
+      targetUserId: userId || undefined,
+      details: `日報一覧を閲覧（${reports.length}件）${filterDetails.length > 0 ? ' - フィルター: ' + filterDetails.join(', ') : ''}`,
+      ipAddress: getIpAddress(request),
     })
 
     return NextResponse.json(reports)

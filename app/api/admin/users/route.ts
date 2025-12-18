@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
+import { createAdminLog, getIpAddress } from '@/lib/adminLog'
 
 // 管理者用: 全社員のリスト取得
 export async function GET(request: Request) {
@@ -44,6 +45,14 @@ export async function GET(request: Request) {
       orderBy: {
         employeeNumber: 'asc',
       },
+    })
+
+    // 社員一覧閲覧をログに記録
+    await createAdminLog({
+      adminId: user.userId,
+      actionType: 'VIEW_USERS',
+      details: `社員一覧を閲覧（${users.length}名）`,
+      ipAddress: getIpAddress(request),
     })
 
     return NextResponse.json(users)
