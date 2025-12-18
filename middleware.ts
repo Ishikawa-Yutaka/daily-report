@@ -3,9 +3,10 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
 // 認証が不要なパス
-const publicPaths = ['/login', '/signup']
+const publicPaths = ['/login', '/signup', '/admin/login', '/setup']
 
 // 認証済みユーザーがアクセスできないパス（ログイン済みなら/にリダイレクト）
+// 注: /admin/loginは含めない（管理者は別のログインフォーム）
 const authPaths = ['/login', '/signup']
 
 export async function middleware(request: NextRequest) {
