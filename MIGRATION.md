@@ -474,3 +474,114 @@ ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false;
 4. スーパーアドミンの保護機能が動作しているか確認
    - スーパーアドミンの権限変更ボタンが非表示になっているか
    - スーパーアドミンを降格・削除しようとするとエラーが返されるか
+
+## v5マイグレーション: 招待コードシステムの追加
+
+### 概要
+
+社員番号の発行・管理機能を追加します。管理者が招待コード（社員番号）を発行し、社員はその番号を使ってサインアップできるようになります。
+
+### 主な変更点
+
+1. **InvitationCodeテーブルの追加**: 招待コード（社員番号）の発行と管理
+2. **サインアップの制限**: 発行済みの社員番号のみでサインアップ可能
+3. **管理画面の機能追加**: 社員番号の発行・一覧表示・削除
+
+### ステップ: InvitationCodeテーブルの作成
+
+Supabase SQLエディタで以下のSQLを実行してください。
+
+```sql
+-- InvitationCodeテーブルの作成
+CREATE TABLE IF NOT EXISTS invitation_codes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_number VARCHAR(50) UNIQUE NOT NULL,
+  is_used BOOLEAN NOT NULL DEFAULT false,
+  used_by UUID,
+  used_at TIMESTAMPTZ,
+  created_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- インデックス作成（検索高速化）
+CREATE INDEX IF NOT EXISTS idx_invitation_codes_employee_number ON invitation_codes(employee_number);
+CREATE INDEX IF NOT EXISTS idx_invitation_codes_is_used ON invitation_codes(is_used);
+CREATE INDEX IF NOT EXISTS idx_invitation_codes_created_by ON invitation_codes(created_by);
+
+-- 外部キー制約を追加（created_byは管理者）
+-- 管理者が削除されても招待コードは履歴として残す（created_byをNULLに）
+ALTER TABLE invitation_codes
+ADD CONSTRAINT fk_invitation_codes_created_by
+  FOREIGN KEY (created_by)
+  REFERENCES users(id)
+  ON DELETE SET NULL;
+
+-- used_byの外部キー制約を追加（使用したユーザー）
+-- ユーザーが削除されても招待コードは履歴として残す（used_byをNULLに）
+ALTER TABLE invitation_codes
+ADD CONSTRAINT fk_invitation_codes_used_by
+  FOREIGN KEY (used_by)
+  REFERENCES users(id)
+  ON DELETE SET NULL;
+```
+
+### v5マイグレーション後の確認事項
+
+1. `invitation_codes`テーブルが正しく作成されているか確認
+   ```sql
+   SELECT column_name, data_type, column_default
+   FROM information_schema.columns
+   WHERE table_name = 'invitation_codes'
+   ORDER BY ordinal_position;
+   ```
+
+2. インデックスが作成されているか確認
+   ```sql
+   SELECT indexname
+   FROM pg_indexes
+   WHERE tablename = 'invitation_codes';
+   ```
+
+3. Prismaクライアントを再生成
+   ```bash
+   npx prisma db pull
+   npx prisma generate
+   ```
+
+4. 管理画面で招待コードを発行できるか確認
+   - `/admin` にアクセス
+   - 「社員番号発行」セクションで新しい社員番号を発行
+   - 発行済み招待コード一覧に表示されるか確認
+
+5. サインアップ時の検証が動作しているか確認
+   - 未発行の社員番号でサインアップ → エラーが表示される
+   - 発行済みの社員番号でサインアップ → 成功する
+   - 使用済みの社員番号でサインアップ → エラーが表示される
+
+### データの流れ
+
+1. **管理者が招待コードを発行**
+   ```
+   employee_number: "EMP001"
+   is_used: false
+   used_by: null
+   created_by: (管理者のID)
+   ```
+
+2. **社員がサインアップ**
+   - 社員番号 "EMP001" を入力
+   - システムが招待コードを確認
+   - 未使用であれば、アカウント作成を許可
+
+3. **使用後の状態**
+   ```
+   employee_number: "EMP001"
+   is_used: true
+   used_by: (作成されたユーザーのID)
+   used_at: (使用日時)
+   ```
+
+4. **ユーザーまたは管理者が削除された場合**
+   - ユーザー削除 → `used_by` が NULL になる
+   - 管理者削除 → `created_by` が NULL になる
+   - **招待コード自体は履歴として残る**

@@ -15,7 +15,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // 社員番号の重複チェック
+    // 招待コードの存在チェック
+    const invitationCode = await prisma.invitationCode.findUnique({
+      where: { employeeNumber },
+    })
+
+    if (!invitationCode) {
+      return NextResponse.json(
+        { error: 'この社員番号は発行されていません。管理者に確認してください。' },
+        { status: 403 }
+      )
+    }
+
+    // 招待コードが既に使用されているかチェック
+    if (invitationCode.isUsed) {
+      return NextResponse.json(
+        { error: 'この社員番号は既に使用されています' },
+        { status: 409 }
+      )
+    }
+
+    // 社員番号の重複チェック（念のため）
     const existingUser = await prisma.user.findUnique({
       where: { employeeNumber },
     })
@@ -30,13 +50,28 @@ export async function POST(request: Request) {
     // パスワードをハッシュ化
     const passwordHash = await hashPassword(password)
 
-    // ユーザーを作成
-    const user = await prisma.user.create({
-      data: {
-        employeeNumber,
-        employeeName,
-        passwordHash,
-      },
+    // ユーザーを作成し、招待コードを使用済みにする（トランザクション）
+    const user = await prisma.$transaction(async (tx) => {
+      // ユーザーを作成
+      const newUser = await tx.user.create({
+        data: {
+          employeeNumber,
+          employeeName,
+          passwordHash,
+        },
+      })
+
+      // 招待コードを使用済みに更新
+      await tx.invitationCode.update({
+        where: { id: invitationCode.id },
+        data: {
+          isUsed: true,
+          usedBy: newUser.id,
+          usedAt: new Date(),
+        },
+      })
+
+      return newUser
     })
 
     // JWTトークンを生成

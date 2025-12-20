@@ -77,6 +77,21 @@ model AdminLog {
   @@map("admin_logs")
 }
 
+model InvitationCode {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeNumber String    @unique
+  isUsed         Boolean   @default(false) @map("is_used")
+  usedBy         String?   @db.Uuid @map("used_by")
+  usedAt         DateTime? @db.Timestamptz(6) @map("used_at")
+  createdBy      String?   @db.Uuid @map("created_by")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  @@index([employeeNumber], map: "idx_invitation_codes_employee_number")
+  @@index([isUsed], map: "idx_invitation_codes_is_used")
+  @@index([createdBy], map: "idx_invitation_codes_created_by")
+  @@map("invitation_codes")
+}
+
 model approvals {
   id         String         @id
   requestId  String

@@ -15,6 +15,17 @@ interface UserSummary {
   reportsCount: number
 }
 
+// 招待コード型定義
+interface InvitationCode {
+  id: string
+  employeeNumber: string
+  isUsed: boolean
+  usedBy: string | null
+  usedAt: string | null
+  createdBy: string | null
+  createdAt: string
+}
+
 // 並び替えオプション
 type SortOption =
   | "date-desc"
@@ -40,6 +51,12 @@ export default function AdminDashboard() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
 
+  // 招待コード関連
+  const [invitationCodes, setInvitationCodes] = useState<InvitationCode[]>([])
+  const [newEmployeeNumber, setNewEmployeeNumber] = useState<string>('')
+  const [invitationLoading, setInvitationLoading] = useState(false)
+  const [invitationError, setInvitationError] = useState<string>('')
+
   useEffect(() => {
     loadData()
   }, [])
@@ -63,6 +80,9 @@ export default function AdminDashboard() {
 
       // 全日報を取得
       await loadReports()
+
+      // 招待コードを取得
+      await loadInvitationCodes()
     } catch (error) {
       console.error('データ取得エラー:', error)
     } finally {
@@ -120,6 +140,85 @@ export default function AdminDashboard() {
         : [...prev, project]
     );
   };
+
+  // 招待コードを読み込む
+  const loadInvitationCodes = async () => {
+    try {
+      const res = await fetch('/api/admin/invitation-codes', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setInvitationCodes(data)
+      }
+    } catch (error) {
+      console.error('招待コード取得エラー:', error)
+    }
+  }
+
+  // 招待コードを発行する
+  const handleCreateInvitationCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setInvitationError('')
+
+    if (!newEmployeeNumber.trim()) {
+      setInvitationError('社員番号を入力してください')
+      return
+    }
+
+    setInvitationLoading(true)
+
+    try {
+      const res = await fetch('/api/admin/invitation-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ employeeNumber: newEmployeeNumber.trim() }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setInvitationError(data.error || '招待コードの発行に失敗しました')
+        return
+      }
+
+      // 成功時：リストを再読み込みして入力をクリア
+      setNewEmployeeNumber('')
+      await loadInvitationCodes()
+    } catch (error) {
+      console.error('招待コード発行エラー:', error)
+      setInvitationError('招待コードの発行に失敗しました')
+    } finally {
+      setInvitationLoading(false)
+    }
+  }
+
+  // 招待コードを削除する（未使用のみ）
+  const handleDeleteInvitationCode = async (id: string, employeeNumber: string) => {
+    if (!confirm(`社員番号 ${employeeNumber} の招待コードを削除しますか？`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/invitation-codes/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || '招待コードの削除に失敗しました')
+        return
+      }
+
+      // 成功時：リストを再読み込み
+      await loadInvitationCodes()
+    } catch (error) {
+      console.error('招待コード削除エラー:', error)
+      alert('招待コードの削除に失敗しました')
+    }
+  }
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('ja-JP', {
@@ -288,6 +387,111 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </Link>
+          </div>
+
+          {/* 招待コード管理セクション */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              招待コード管理
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              新しい社員が登録できるように社員番号を発行します。発行された社員番号を使って、社員はアカウントを作成できます。
+            </p>
+
+            {/* 招待コード発行フォーム */}
+            <form onSubmit={handleCreateInvitationCode} className="mb-6">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newEmployeeNumber}
+                    onChange={(e) => setNewEmployeeNumber(e.target.value)}
+                    placeholder="社員番号を入力（例: EMP001）"
+                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-400"
+                    disabled={invitationLoading}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={invitationLoading}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {invitationLoading ? '発行中...' : '発行'}
+                </button>
+              </div>
+              {invitationError && (
+                <p className="mt-2 text-sm text-red-600">{invitationError}</p>
+              )}
+            </form>
+
+            {/* 招待コード一覧 */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      社員番号
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      ステータス
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      発行日時
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      使用日時
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {invitationCodes.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                        招待コードが発行されていません
+                      </td>
+                    </tr>
+                  ) : (
+                    invitationCodes.map((code) => (
+                      <tr key={code.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {code.employeeNumber}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          {code.isUsed ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              使用済み
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              未使用
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(code.createdAt).toLocaleString('ja-JP')}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {code.usedAt ? new Date(code.usedAt).toLocaleString('ja-JP') : '-'}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          {!code.isUsed && (
+                            <button
+                              onClick={() => handleDeleteInvitationCode(code.id, code.employeeNumber)}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                            >
+                              削除
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* 検索・フィルターセクション */}
