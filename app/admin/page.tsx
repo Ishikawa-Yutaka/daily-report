@@ -1,18 +1,19 @@
-'use client'
+"use client";
 
-import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
-import AdminRoute from '@/components/AdminRoute'
-import Header from '@/components/Header'
-import { DailyReportWithUser } from '@/types/daily-report'
-import { DatePreset, getDateRange } from '@/lib/dateUtils'
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import AdminRoute from "@/components/AdminRoute";
+import Header from "@/components/Header";
+import AdminNavigation from "@/components/AdminNavigation";
+import { DailyReportWithUser } from "@/types/daily-report";
+import { DatePreset, getDateRange } from "@/lib/dateUtils";
 
 interface UserSummary {
-  id: string
-  employeeNumber: string
-  employeeName: string
-  role: string
-  reportsCount: number
+  id: string;
+  employeeNumber: string;
+  employeeName: string;
+  role: string;
+  reportsCount: number;
 }
 
 // 並び替えオプション
@@ -25,57 +26,59 @@ type SortOption =
   | "hours-asc";
 
 export default function AdminDashboard() {
-  const [reports, setReports] = useState<DailyReportWithUser[]>([])
-  const [users, setUsers] = useState<UserSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [reports, setReports] = useState<DailyReportWithUser[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   // 期間フィルター関連
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [customStartDate, setCustomStartDate] = useState<string>('');
-  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
 
   // 検索・フィルター関連
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
       // 社員一覧を取得
-      const usersRes = await fetch('/api/admin/users', {
-        credentials: 'include',
-      })
+      const usersRes = await fetch("/api/admin/users", {
+        credentials: "include",
+      });
       if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        setUsers(usersData.map((u: any) => ({
-          id: u.id,
-          employeeNumber: u.employeeNumber,
-          employeeName: u.employeeName,
-          role: u.role,
-          reportsCount: u._count.reports,
-        })))
+        const usersData = await usersRes.json();
+        setUsers(
+          usersData.map((u: any) => ({
+            id: u.id,
+            employeeNumber: u.employeeNumber,
+            employeeName: u.employeeName,
+            role: u.role,
+            reportsCount: u._count.reports,
+          }))
+        );
       }
 
       // 全日報を取得
-      await loadReports()
+      await loadReports();
     } catch (error) {
-      console.error('データ取得エラー:', error)
+      console.error("データ取得エラー:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const loadReports = async () => {
     try {
-      const params = new URLSearchParams()
+      const params = new URLSearchParams();
 
       // 社員フィルター
-      if (selectedUserId) params.append('userId', selectedUserId)
+      if (selectedUserId) params.append("userId", selectedUserId);
 
       // 期間フィルター（プリセットまたはカスタム）
       const { startDate, endDate } = getDateRange(
@@ -83,35 +86,38 @@ export default function AdminDashboard() {
         customStartDate,
         customEndDate
       );
-      if (startDate) params.append('startDate', startDate)
-      if (endDate) params.append('endDate', endDate)
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
 
-      const reportsRes = await fetch(`/api/admin/reports?${params.toString()}`, {
-        credentials: 'include',
-      })
+      const reportsRes = await fetch(
+        `/api/admin/reports?${params.toString()}`,
+        {
+          credentials: "include",
+        }
+      );
       if (reportsRes.ok) {
-        const reportsData = await reportsRes.json()
-        setReports(reportsData)
+        const reportsData = await reportsRes.json();
+        setReports(reportsData);
       }
     } catch (error) {
-      console.error('日報取得エラー:', error)
+      console.error("日報取得エラー:", error);
     }
-  }
+  };
 
   const handleFilter = () => {
-    loadReports()
-  }
+    loadReports();
+  };
 
   const handleReset = () => {
-    setSelectedUserId('')
-    setDatePreset("all")
-    setCustomStartDate('')
-    setCustomEndDate('')
-    setSearchKeyword('')
-    setSelectedProjects([])
-    setSortOption("date-desc")
-    setTimeout(() => loadReports(), 0)
-  }
+    setSelectedUserId("");
+    setDatePreset("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setSearchKeyword("");
+    setSelectedProjects([]);
+    setSortOption("date-desc");
+    setTimeout(() => loadReports(), 0);
+  };
 
   const handleProjectToggle = (project: string) => {
     setSelectedProjects((prev) =>
@@ -122,17 +128,17 @@ export default function AdminDashboard() {
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short',
-    })
-  }
+    return new Date(date).toLocaleDateString("ja-JP", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+  };
 
   const getTotalHours = (report: DailyReportWithUser) => {
-    return report.activities.reduce((sum, a) => sum + a.workingHours, 0)
-  }
+    return report.activities.reduce((sum, a) => sum + a.workingHours, 0);
+  };
 
   // 利用可能なプロジェクト一覧を取得
   const availableProjects = useMemo(() => {
@@ -228,7 +234,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </AdminRoute>
-    )
+    );
   }
 
   return (
@@ -238,72 +244,12 @@ export default function AdminDashboard() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">管理者ダッシュボード</h1>
+            <h1 className="text-3xl font-bold text-gray-900">日報一覧</h1>
             <p className="mt-2 text-gray-600">全社員の日報を確認できます</p>
           </div>
 
           {/* ナビゲーション */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Link
-              href="/admin"
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg p-4 transition-colors"
-            >
-              <div className="flex items-center">
-                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <div>
-                  <div className="font-semibold">日報一覧</div>
-                  <div className="text-sm opacity-90">全社員の日報を閲覧</div>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/admin/users"
-              className="bg-purple-500 hover:bg-purple-600 text-white rounded-lg p-4 transition-colors"
-            >
-              <div className="flex items-center">
-                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <div>
-                  <div className="font-semibold">社員管理</div>
-                  <div className="text-sm opacity-90">権限の付与・変更</div>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/admin/invitation-codes"
-              className="bg-green-500 hover:bg-green-600 text-white rounded-lg p-4 transition-colors"
-            >
-              <div className="flex items-center">
-                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-                <div>
-                  <div className="font-semibold">招待コード</div>
-                  <div className="text-sm opacity-90">社員番号の発行</div>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/admin/logs"
-              className="bg-gray-700 hover:bg-gray-800 text-white rounded-lg p-4 transition-colors"
-            >
-              <div className="flex items-center">
-                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <div>
-                  <div className="font-semibold">操作ログ</div>
-                  <div className="text-sm opacity-90">管理者の操作履歴</div>
-                </div>
-              </div>
-            </Link>
-          </div>
+          <AdminNavigation currentPage="dashboard" />
 
           {/* 検索・フィルターセクション */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -499,9 +445,7 @@ export default function AdminDashboard() {
               <select
                 id="sort"
                 value={sortOption}
-                onChange={(e) =>
-                  setSortOption(e.target.value as SortOption)
-                }
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
                 className="w-full md:w-auto border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               >
                 <option value="date-desc">日付（新しい順）</option>
@@ -553,13 +497,22 @@ export default function AdminDashboard() {
               <p className="text-3xl font-bold text-blue-600">{users.length}</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-sm font-medium text-gray-600 mb-2">日報件数（表示中）</h3>
-              <p className="text-3xl font-bold text-green-600">{filteredAndSortedReports.length}</p>
+              <h3 className="text-sm font-medium text-gray-600 mb-2">
+                日報件数（表示中）
+              </h3>
+              <p className="text-3xl font-bold text-green-600">
+                {filteredAndSortedReports.length}
+              </p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-sm font-medium text-gray-600 mb-2">稼働時間（表示中）</h3>
+              <h3 className="text-sm font-medium text-gray-600 mb-2">
+                稼働時間（表示中）
+              </h3>
               <p className="text-3xl font-bold text-purple-600">
-                {filteredAndSortedReports.reduce((sum, r) => sum + getTotalHours(r), 0).toFixed(1)}h
+                {filteredAndSortedReports
+                  .reduce((sum, r) => sum + getTotalHours(r), 0)
+                  .toFixed(1)}
+                h
               </p>
             </div>
           </div>
@@ -634,5 +587,5 @@ export default function AdminDashboard() {
         </div>
       </div>
     </AdminRoute>
-  )
+  );
 }

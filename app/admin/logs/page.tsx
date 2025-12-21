@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import AdminRoute from '@/components/AdminRoute'
 import Header from '@/components/Header'
+import AdminNavigation from '@/components/AdminNavigation'
 
 interface AdminLog {
   id: string
@@ -108,18 +108,13 @@ export default function AdminLogsPage() {
         <Header />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">操作ログ</h1>
-              <p className="mt-2 text-gray-600">管理者の操作履歴を確認できます</p>
-            </div>
-            <Link
-              href="/admin"
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              ← ダッシュボードに戻る
-            </Link>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">操作ログ</h1>
+            <p className="mt-2 text-gray-600">管理者の操作履歴を確認できます</p>
           </div>
+
+          {/* ナビゲーション */}
+          <AdminNavigation currentPage="logs" />
 
           {/* フィルター */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
